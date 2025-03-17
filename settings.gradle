@@ -1,0 +1,3 @@
+rootProject.name = "LibOkDownload"
+include ':app'
+include ':ok_download'
