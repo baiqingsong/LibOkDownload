@@ -30,4 +30,9 @@ dependencies {
 
     implementation 'com.android.support:appcompat-v7:28.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+
+    implementation 'com.liulishuo.okdownload:okdownload:1.0.7'
+    implementation 'com.liulishuo.okdownload:sqlite:1.0.7'     // 断点续传数据库支持
+    implementation 'com.liulishuo.okdownload:okhttp:1.0.7'    // 使用 OkHttp 网络库（可选）
+
 }

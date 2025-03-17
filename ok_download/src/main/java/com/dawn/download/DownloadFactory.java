@@ -1,34 +1,33 @@
 package com.dawn.download;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Message;
 
-import com.dawn.download.broadcast.DownloadBroadcastUtil;
-import com.dawn.download.entitis.FileInfo;
-import com.dawn.download.service.DownloadService;
-import com.dawn.download.service.DownloadTask;
+import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import com.liulishuo.okdownload.DownloadListener;
+import com.liulishuo.okdownload.DownloadTask;
+import com.liulishuo.okdownload.OkDownload;
+import com.liulishuo.okdownload.core.breakpoint.BreakpointInfo;
+import com.liulishuo.okdownload.core.cause.EndCause;
+import com.liulishuo.okdownload.core.cause.ResumeFailedCause;
+import com.liulishuo.okdownload.core.connection.DownloadOkHttp3Connection;
+import com.liulishuo.okdownload.core.dispatcher.DownloadDispatcher;
+import com.liulishuo.okdownload.core.listener.DownloadListener3;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class DownloadFactory {
-    private  Context mContext;
     //单例模式
-    private static DownloadFactory instance = null;
+    private static DownloadFactory instance;
+    private Context context;
 
     private DownloadFactory(Context context) {
-        mContext = context;
-        initDownloadReceiver();
+        this.context = context;
+        init();
     }
 
     public static DownloadFactory getInstance(Context context) {
@@ -41,80 +40,97 @@ public class DownloadFactory {
         }
         return instance;
     }
-    private DownloadListener mListener;
-
-    /**
-     * 设置回调监听
-     */
-    public DownloadFactory setListener(DownloadListener listener) {
-        this.mListener = listener;
-        return instance;
+    public void init(){
+        // 初始化 OKDownload
+        OkDownload.Builder builder = new OkDownload.Builder(context)
+                .connectionFactory(new DownloadOkHttp3Connection.Factory());
+        OkDownload.setSingletonInstance(builder.build());
+        // 设置最大下载任务数
+        DownloadDispatcher.setMaxParallelRunningCount(3);
     }
 
-    /**
-     * 初始化下载任务
-     */
-    private void initDownloadReceiver(){
-        DownloadReceiver downloadReceiver = new DownloadReceiver();
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(DownloadBroadcastUtil.ACTION_UPDATE);
-        intentFilter.addAction(DownloadBroadcastUtil.ACTION_FINISHED);
-        intentFilter.addAction(DownloadBroadcastUtil.ACTION_START);
-        intentFilter.addAction(DownloadBroadcastUtil.ACTION_ERROR);
-        mContext.registerReceiver(downloadReceiver, intentFilter);
-    }
+    public void downloadFile(String url, String saveDir, AutoDownloadListener listener) {
+        DownloadTask task = new DownloadTask.Builder(url, new File(saveDir))
+                .setFilename("filename.ext")               // 指定文件名（可选）
+                .setMinIntervalMillisCallbackProcess(30)   // 进度回调间隔（单位：毫秒）
+                .setPassIfAlreadyCompleted(false)// 是否跳过已完成任务
+                .build();
+        task.enqueue(new DownloadListener() {
 
-    private int failCount;//下载失败次数
+            @Override
+            public void taskStart(@NonNull DownloadTask task) {
+                //当下载任务开始时调用 task 当前下载任务
+                if(listener != null)
+                    listener.onStart(task.getUrl());
+            }
 
-    /**
-     * 开始下载
-     */
-    public void download(FileInfo fileInfo){
-        Intent intent = new Intent(mContext, DownloadService.class);
-        intent.setAction(DownloadBroadcastUtil.ACTION_START);
-        intent.putExtra("fileInfo", fileInfo);
-        mContext.startService(intent);
-    }
+            @Override
+            public void connectTrialStart(@NonNull DownloadTask task, @NonNull Map<String, List<String>> requestHeaderFields) {
+                //当下载任务开始尝试连接时调用 task 当前下载任务，requestHeaderFields 请求头
+            }
 
-    public class DownloadReceiver extends BroadcastReceiver{
+            @Override
+            public void connectTrialEnd(@NonNull DownloadTask task, int responseCode, @NonNull Map<String, List<String>> responseHeaderFields) {
+                //当下载任务结束尝试连接时调用 task 当前下载任务，responseCode 响应码，responseHeaderFields 响应头
+            }
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if(intent == null)
-                return;
-            FileInfo fileInfo = (FileInfo) intent.getSerializableExtra("fileInfo");
-            if(DownloadBroadcastUtil.ACTION_START.equals(intent.getAction())) {//开始下载
-                if(mListener != null)
-                    mListener.onStart(fileInfo);
-            }else if(DownloadBroadcastUtil.ACTION_UPDATE.equals(intent.getAction())) {//更新进度
-                int progress = intent.getIntExtra("finished", 0);
-                if (mListener != null)
-                    mListener.onProgress(fileInfo, progress);
-            }else if(DownloadBroadcastUtil.ACTION_FINISHED.equals(intent.getAction())) {//下载完成
-                failCount = 0;
-                if(mListener != null)
-                    mListener.onFinish(fileInfo);
-            }else if(DownloadBroadcastUtil.ACTION_STOP.equals(intent.getAction())) {//暂停下载
-                if (mListener != null)
-                    mListener.onStop(fileInfo);
-            }else if(DownloadBroadcastUtil.ACTION_ERROR.equals(intent.getAction())) {//下载失败
-                failCount++;
-                if(failCount < 3){
-                    download(fileInfo);
-                }else{
-                    failCount = 0;
-                    if(mListener != null)
-                        mListener.onFail(fileInfo);
+            @Override
+            public void downloadFromBeginning(@NonNull DownloadTask task, @NonNull BreakpointInfo info, @NonNull ResumeFailedCause cause) {
+                //当下载任务从头开始下载时调用 task 当前下载任务，info 断点信息，cause 回复失败原因
+            }
+
+            @Override
+            public void downloadFromBreakpoint(@NonNull DownloadTask task, @NonNull BreakpointInfo info) {
+                //当下载任务从断点下载时调用 task 当前下载任务，info 断点信息
+            }
+
+            @Override
+            public void connectStart(@NonNull DownloadTask task, int blockIndex, @NonNull Map<String, List<String>> requestHeaderFields) {
+                //当下载任务开始连接时调用 task 当前下载任务，blockIndex 块索引，requestHeaderFields 请求头
+            }
+
+            @Override
+            public void connectEnd(@NonNull DownloadTask task, int blockIndex, int responseCode, @NonNull Map<String, List<String>> responseHeaderFields) {
+                //当下载任务结束连接时调用 task 当前下载任务，blockIndex 块索引，responseCode 响应码，responseHeaderFields 响应头
+            }
+
+            @Override
+            public void fetchStart(@NonNull DownloadTask task, int blockIndex, long contentLength) {
+                //当下载任务开始获取数据时调用 task 当前下载任务，blockIndex 块索引，contentLength 内容长度
+            }
+
+            @Override
+            public void fetchProgress(@NonNull DownloadTask task, int blockIndex, long increaseBytes) {
+                //当下载任务获取数据进度更新时调用 task 当前下载任务，blockIndex 块索引，increaseBytes 增加的字节数
+                try{
+                    int progress = (int)task.getInfo().getTotalOffset();
+                    int totalLength = (int)task.getInfo().getTotalLength();
+                    if(listener != null)
+                        listener.onProgress(task.getUrl(), progress, totalLength);
+                }catch (Exception e){
+                    e.printStackTrace();
                 }
             }
-        }
+
+            @Override
+            public void fetchEnd(@NonNull DownloadTask task, int blockIndex, long contentLength) {
+                //当下载任务结束获取数据时调用 task 当前下载任务，blockIndex 块索引，contentLength 内容长度
+            }
+
+            @Override
+            public void taskEnd(@NonNull DownloadTask task, @NonNull EndCause cause, @Nullable Exception realCause) {
+                //当下载任务结束时调用 task 当前下载任务，cause 原因，realCause 实际原因
+                if (cause == EndCause.COMPLETED) {
+                    // 下载完成
+                    if(listener != null)
+                        listener.onFinish(task.getUrl(), task.getFile().getAbsolutePath());
+                } else {
+                    // 下载失败
+                    if(listener != null)
+                        listener.onError(task.getUrl(), cause.toString());
+                }
+            }
+        });
     }
 
-    public interface DownloadListener {
-        void onStart(FileInfo fileInfo);//开始下载
-        void onStop(FileInfo fileInfo);//暂停下载
-        void onProgress(FileInfo fileInfo, int progress);//下载进度
-        void onFinish(FileInfo fileInfo);//下载完成
-        void onFail(FileInfo fileInfo);//下载失败
-    }
 }
