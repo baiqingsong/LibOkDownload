@@ -35,4 +35,7 @@ dependencies {
     implementation 'com.liulishuo.okdownload:sqlite:1.0.7'     // 断点续传数据库支持
     implementation 'com.liulishuo.okdownload:okhttp:1.0.7'    // 使用 OkHttp 网络库（可选）
 
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+
+
 }
