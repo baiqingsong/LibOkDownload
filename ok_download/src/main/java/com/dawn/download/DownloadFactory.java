@@ -113,7 +113,6 @@ public class DownloadFactory {
             @Override
             public void taskStart(@NonNull DownloadTask task) {
                 //当下载任务开始时调用 task 当前下载任务
-                Log.i("dawn", "taskStart");
                 if(listener != null)
                     listener.onStart(task.getUrl());
             }
@@ -121,49 +120,41 @@ public class DownloadFactory {
             @Override
             public void connectTrialStart(@NonNull DownloadTask task, @NonNull Map<String, List<String>> requestHeaderFields) {
                 //当下载任务开始尝试连接时调用 task 当前下载任务，requestHeaderFields 请求头
-                Log.i("dawn", "connectTrialStart");
             }
 
             @Override
             public void connectTrialEnd(@NonNull DownloadTask task, int responseCode, @NonNull Map<String, List<String>> responseHeaderFields) {
                 //当下载任务结束尝试连接时调用 task 当前下载任务，responseCode 响应码，responseHeaderFields 响应头
-                Log.i("dawn", "connectTrialEnd");
             }
 
             @Override
             public void downloadFromBeginning(@NonNull DownloadTask task, @NonNull BreakpointInfo info, @NonNull ResumeFailedCause cause) {
                 //当下载任务从头开始下载时调用 task 当前下载任务，info 断点信息，cause 回复失败原因
-                Log.i("dawn", "downloadFromBeginning");
             }
 
             @Override
             public void downloadFromBreakpoint(@NonNull DownloadTask task, @NonNull BreakpointInfo info) {
                 //当下载任务从断点下载时调用 task 当前下载任务，info 断点信息
-                Log.i("dawn", "downloadFromBreakpoint");
             }
 
             @Override
             public void connectStart(@NonNull DownloadTask task, int blockIndex, @NonNull Map<String, List<String>> requestHeaderFields) {
                 //当下载任务开始连接时调用 task 当前下载任务，blockIndex 块索引，requestHeaderFields 请求头
-                Log.i("dawn", "connectStart");
             }
 
             @Override
             public void connectEnd(@NonNull DownloadTask task, int blockIndex, int responseCode, @NonNull Map<String, List<String>> responseHeaderFields) {
                 //当下载任务结束连接时调用 task 当前下载任务，blockIndex 块索引，responseCode 响应码，responseHeaderFields 响应头
-                Log.i("dawn", "connectEnd");
             }
 
             @Override
             public void fetchStart(@NonNull DownloadTask task, int blockIndex, long contentLength) {
                 //当下载任务开始获取数据时调用 task 当前下载任务，blockIndex 块索引，contentLength 内容长度
-                Log.i("dawn", "fetchStart");
             }
 
             @Override
             public void fetchProgress(@NonNull DownloadTask task, int blockIndex, long increaseBytes) {
                 //当下载任务获取数据进度更新时调用 task 当前下载任务，blockIndex 块索引，increaseBytes 增加的字节数
-                Log.i("dawn", "fetchProgress");
                 try{
                     int progress = (int)task.getInfo().getTotalOffset();
                     int totalLength = (int)task.getInfo().getTotalLength();
@@ -177,13 +168,11 @@ public class DownloadFactory {
             @Override
             public void fetchEnd(@NonNull DownloadTask task, int blockIndex, long contentLength) {
                 //当下载任务结束获取数据时调用 task 当前下载任务，blockIndex 块索引，contentLength 内容长度
-                Log.i("dawn", "fetchEnd");
             }
 
             @Override
             public void taskEnd(@NonNull DownloadTask task, @NonNull EndCause cause, @Nullable Exception realCause) {
                 //当下载任务结束时调用 task 当前下载任务，cause 原因，realCause 实际原因
-                Log.i("dawn", "taskEnd");
                 if (cause == EndCause.COMPLETED) {
                     // 下载完成
                     if(listener != null)
